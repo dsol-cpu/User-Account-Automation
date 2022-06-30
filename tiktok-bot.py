@@ -3,7 +3,8 @@ import datetime
 import time
 import random
 
-from selenium import webdriver
+import requests
+
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -17,19 +18,94 @@ class My_Chrome():
 	def __del__(self):
 		pass
 
-	def __init__(self, jsondata, csvdata=[], zoho=False):
+	def __init__(self, jsondata, zoho=False):
+		self.csvdata = []
+		self.emailProvider = ""
 
-		self.csvdata = csvdata
-		self.email = jsondata["mainEmail"]
-		self.password = jsondata["password"]
+		while self.emailProvider != "google" and self.emailProvider != "yahoo":
+			self.emailProvider = input("Enter your email provider(google/yahoo)").lower()
+		
+		with open(os.getcwd() + "/" + self.emailProvider + "Aliases.csv", mode ='r') as file:
+			# reading the CSV file
+			csvFile = csv.reader(file)
+
+			# displaying the contents of the CSV file
+			for row in csvFile:
+				self.csvdata.append(row)
+
 		self.logIn = False
+		
+		self.email = jsondata[self.emailProvider + "Email"]
+		self.password = jsondata[self.emailProvider +"Password"]
+
+		# with open(os.getcwd() + "/" + self.emailProvider + "Aliases.csv", mode ='r') as file:
+		# 	# reading the CSV file
+		# 	csvFile = csv.reader(file)
+
+		# 	# displaying the contents of the CSV file
+		# 	for row in csvFile:
+		# 		self.csvdata.append(row)
+
+
+		# desired_capabilities = DesiredCapabilities.PHANTOMJS.copy()
+		# desired_capabilities['phantomjs.page.customHeaders.User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) ' \
+        #                                                           'AppleWebKit/537.36 (KHTML, like Gecko) ' \
+        #                                                           'Chrome/39.0.2171.95 Safari/537.36'
+		# driver = webdriver.PhantomJS(desired_capabilities=desired_capabilities)
 
 		#TODO: turn off the SameSite cookie for lastmx
 		opts = Options()
-		opts.add_argument("user-agent=Chrome/51.0.2704.106 Safari/537.36 OPR/38.0.2220.41")
-		self.browser = uc.Chrome(options = opts)
-		self.browser.delete_all_cookies()
-		
+		# opts.add_experimental_option('excludeSwitches', ['enable-logging'])
+		# opts.add_experimental_option('excludeSwitches', ['enable-automation'])
+		# opts.add_experimental_option('useAutomationExtension', False)
+
+		args = [
+		# "user-agent=Chrome/51.0.2704.106 Safari/537.36 OPR/38.0.2220.41",
+		" --incognito",
+		" --no-referrers",
+		"--no-first-run --no-service-autorun --password-store=basic",
+		"--disable-extensions",
+		"--profile-directory=Default",
+		"--disable-plugins-discovery",
+		"--start-maximized",
+		"whitelisted-ips",
+		# "no-sandbox",
+		"--disable-inforbars",
+		"--disable-gpu",
+		# "--headless",
+		# "--disable-blink-features=AutomationControlled",
+		# "window-size=1920,1000",
+		# "--user-data-dir=C:/Users/Admin/AppData/Local/Google/Chrome/User Data",
+		]
+
+		for arg in args:
+			opts.add_argument(arg)
+
+		# opts.headless = True
+		# s = Service(os.getcwd() + "/chromedriver.exe",)
+		# self.browser = webdriver.Chrome(os.getcwd() + "/chromedriver.exe", options = opts)
+
+		self.browser = uc.Chrome(options=opts)
+		self.browser.get("about:blank")
+		self.browser.get("https://www.tiktok.com/signup/phone-or-email/email")
+		time.sleep(2)
+		#csrf token where
+		# try:
+		# 	cookies = [
+		# 		{"name":"MONITOR_DEVICE_ID", "value":"83f2a32c-e1bb-4f12-bb7d-738337ace68a","domain":"www.tiktok.com", ' httpOnly ' : True},
+		# 		{"name":"MONITOR_WEB_ID", "value":"4dd6413e-0004-4295-90a8-3ca3f05b67ce","domain":"www.tiktok.com", ' httpOnly ' : True},
+		# 		{"name":"odin_tt", "value":"4cbddea8615660cd4d8f2aac72020c88f81f84543414b9092e23b135438d9bce3c52b8b3d586719076c8965c91c10ee2db823e96577d92def744dd8261b49fc4dcb8119d446341430d6657d564722471","domain":"www.tiktok.com", ' httpOnly ' : True},
+		# 		{"name":"passport_auth_status", "value":"d747cae4366730551d03dad13b7c4ea8","domain":"www.tiktok.com", ' httpOnly ' : True},
+		# 		{"name":"passport_auth_status_ss", "value":"d747cae4366730551d03dad13b7c4ea8","domain":"www.tiktok.com", ' httpOnly ' : True}
+		# 	]
+			
+		# 	for cookie in cookies:
+		# 		self.browser.add_cookie(cookie)
+		# 	print("cookies successfully added to browser!")
+		# except exceptions.InvalidCookieDomainException as e:
+		# 	print(e.msg)
+			
+		# self.browser = uc.Chrome(options = opts)
 		self.zoho = zoho
 
 	def saveSuccessfulInfo(self, successList):
@@ -42,13 +118,34 @@ class My_Chrome():
 		f.close()
 		return
 
+	def get_successful_connect_cookies(self, url):
+		self.browser.get(url)
+
+		request_cookies_browser = self.browser.get_cookies()
+
+		params = {'os_username':'username', 'os_password':'password'}
+		s = requests.Session()
+
+		c = [s.cookies.set(c['name'], c['value']) for c in request_cookies_browser]
+		resp = s.post(url, params) #get successful 200 response
+
+		#passing the cookie of the response to the browser
+		dict_resp_cookies = resp.cookies.get_dict()
+		response_cookies_browser = [{'name':name, 'value':value} for name, value in dict_resp_cookies.items()]
+		c = [self.browser.add_cookie(c) for c in response_cookies_browser]
+
+		#the browser now contains the cookies generated from the authentication    
+		self.browser.get(url)
+	
 	def tiktokAccountCreate(self):
 		# for i in (0, len(self.csvdata)):
-		self.browser.get("https://www.tiktok.com/signup/phone-or-email/email")
+		url = "https://www.tiktok.com/signup/phone-or-email/email"
+		self.get_successful_connect_cookies(url)
+
 		self.browser.implicitly_wait(10)
 		time.sleep(2)
 
-		#csrf token where
+		# <div type="error" class="tiktok-1ucf5ae-DivDescription e18rms3f2">invalid csrf token</div>
 
 		# input("Hanging")
 		email = self.csvdata[0]
@@ -126,14 +223,16 @@ class My_Chrome():
 		self.browser.find_element(By.XPATH, '//*[@placeholder = "Enter 6-digit code"]').send_keys(tikTokCode)
 		self.browser.find_element(By.CSS_SELECTOR, "button[type = 'submit']").click()
 
-		qrcode = WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, '//img')))
-		if(qrcode):
-			print("placeholder scan")
+		try:
+			self.browser.find_element(By.XPATH, '//*[text() = "Skip"]').click()
+		except Exception as e:
+			print(e.msg)
+		# qrcode = WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, '//img')))
+		# if(qrcode):
+		# 	print("placeholder scan on qrcode")
 			
-		
-
 		# self.saveSuccessfulInfo({email, passw})
- 
+
 	#Google Signin
 	def googleSignIn(self):
 		if self.zoho:
@@ -148,7 +247,8 @@ class My_Chrome():
 		# self.browser.execute_script("window.open('https://accounts.google.com/signin/v2/identifier?continue=https%3A%2F%2Fmail.google.com%2Fmail%2F&service=mail&sacu=1&rip=1&flowName=GlifWebSignIn&flowEntry=ServiceLogin');") 
 		# #proceed with new tab
 		# self.browser.switch_to.window(self.browser.window_handles[1])
-		
+
+		# self.options.add_argument('user-data-dir=c:\Users\' username '\AppData\Local\Google\Chrome\User Data\');
 		self.browser.execute_script("window.open('https://accounts.google.com/signin/v2/identifier?continue=https%3A%2F%2Fmail.google.com%2Fmail%2F&service=mail&sacu=1&rip=1&flowName=GlifWebSignIn&flowEntry=ServiceLogin');") 
 		#proceed with new tab
 		self.browser.switch_to.window(self.browser.window_handles[1])
@@ -185,18 +285,32 @@ class My_Chrome():
 		self.browser.switch_to.window(self.browser.window_handles[1])
 
 		WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, '//input[@name="username"]')))
-		gmailUserBox = self.browser.find_element(By.XPATH, '//input[@name="username"]')
-		gmailUserBox.send_keys(self.email)
-		gmailUserBox.send_keys(Keys.ENTER)
+		yahooUserBox = self.browser.find_element(By.XPATH, '//input[@name="username"]')
+		yahooUserBox.send_keys(self.email)
+		yahooUserBox.send_keys(Keys.ENTER)
 
 		WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, '//input[@id = "login-passwd"]')))
-		gmailPasswBox = self.browser.find_element(By.XPATH, '//input[@id = "login-passwd"]')
-		gmailPasswBox.send_keys(self.password)
+		yahooPasswBox = self.browser.find_element(By.XPATH, '//input[@id = "login-passwd"]')
+		yahooPasswBox.send_keys(self.password)
 		time.sleep(1)
-		gmailPasswBox.send_keys(Keys.ENTER)
-		print("signed into google!")
+		yahooPasswBox.send_keys(Keys.ENTER)
 
-		pass
+		# WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, "//span[text() = 'Continue']")))
+		# continueBtn = self.browser.find_element(By.XPATH, "//span[text() = 'Continue']")
+		# continueBtn.click()
+
+		print("signed into yahoo!")
+
+		yahooMails = self.browser.find_elements(By.XPATH, '//*[@data-test-id = "subject"]/a')
+		while(True):
+			for yahooMail in yahooMails:
+				print(yahooMail.text)
+				if "verification code" in yahooMail.text:
+					print(yahooMail.text[:6])
+					return str(yahooMail.text[:6])
+			print("No code found!")
+			time.sleep(5)
+			self.browser.refresh()
 
 	#Zoho Signin
 	def zohoSignIn(self, email):
@@ -212,8 +326,10 @@ class My_Chrome():
 	def getRecentCode(self):
 		# stalling = input("stalling before google signin")
 		if not self.logIn:
-			return self.googleSignIn()
-
+			if self.emailProvider == 'google':
+				return self.googleSignIn()
+			elif self.emailProvider == 'yahoo':
+				return self.yahooSignIn()
 
 	def main(self):
 		# self.browser.maximize_window()
@@ -221,21 +337,12 @@ class My_Chrome():
 
 	
 if __name__ == "__main__":
-
+	
 	data = open("settings.json", "r+", encoding="utf8")
 	jsondata = json.load(data)
 	data.close()
-	csvdata = []
-
-	with open(os.getcwd() + '/emails.csv', mode ='r') as file:
-		# reading the CSV file
-		csvFile = csv.reader(file)
-
-		# displaying the contents of the CSV file
-		for row in csvFile:
-			csvdata.append(row)
-
-	newChrome = My_Chrome(jsondata, csvdata)
+	
+	newChrome = My_Chrome(jsondata)
 	newChrome.main()
 
 	hangingStall = input("Hanging")

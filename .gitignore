@@ -1,6 +1,9 @@
 settings.json
 emailList.csv
 emails.csv
+yahooAliases.csv
+googleAliases.csv
+chromedriver.exe
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
