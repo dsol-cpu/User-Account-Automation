@@ -61,17 +61,16 @@ class My_Chrome():
 
 		args = [
 		# "user-agent=Chrome/51.0.2704.106 Safari/537.36 OPR/38.0.2220.41",
-		" --incognito",
-		" --no-referrers",
-		"--no-first-run --no-service-autorun --password-store=basic",
-		"--disable-extensions",
-		"--profile-directory=Default",
-		"--disable-plugins-discovery",
-		"--start-maximized",
-		"whitelisted-ips",
+		# " --incognito",
+		# " --no-referrers",
+		# "--no-first-run --no-service-autorun --password-store=basic",
+		# "--disable-extensions",
+		# "--profile-directory=Default",
+		# "--disable-plugins-discovery",
+		# "--start-maximized",
 		# "no-sandbox",
-		"--disable-inforbars",
-		"--disable-gpu",
+		# "--disable-inforbars",
+		# "--disable-gpu",
 		# "--headless",
 		# "--disable-blink-features=AutomationControlled",
 		# "window-size=1920,1000",
@@ -108,6 +107,11 @@ class My_Chrome():
 		# self.browser = uc.Chrome(options = opts)
 		self.zoho = zoho
 
+	def send_keys_delay_random(self,element,keys,min_delay=0.05,max_delay=0.25):
+		for key in keys:
+			element.send_keys(key)
+			time.sleep(random.uniform(min_delay,max_delay))
+
 	def saveSuccessfulInfo(self, successList):
 		f = open(os.getcwd() + "/emailListInformation "+ datetime.date.today() + ".csv", 'w')
 		writer = csv.writer(f)
@@ -123,7 +127,7 @@ class My_Chrome():
 
 		request_cookies_browser = self.browser.get_cookies()
 
-		params = {'os_username':'username', 'os_password':'password'}
+		params = {'tt_csrftoken':requests.request(url=url)}
 		s = requests.Session()
 
 		c = [s.cookies.set(c['name'], c['value']) for c in request_cookies_browser]
@@ -133,19 +137,18 @@ class My_Chrome():
 		dict_resp_cookies = resp.cookies.get_dict()
 		response_cookies_browser = [{'name':name, 'value':value} for name, value in dict_resp_cookies.items()]
 		c = [self.browser.add_cookie(c) for c in response_cookies_browser]
-
 		#the browser now contains the cookies generated from the authentication    
-		self.browser.get(url)
 	
 	def tiktokAccountCreate(self):
 		# for i in (0, len(self.csvdata)):
 		url = "https://www.tiktok.com/signup/phone-or-email/email"
-		self.get_successful_connect_cookies(url)
+		self.browser.get(url)
+		# self.get_successful_connect_cookies(url)
 
 		self.browser.implicitly_wait(10)
-		time.sleep(2)
+		time.sleep(3560350)
 
-		# <div type="error" class="tiktok-1ucf5ae-DivDescription e18rms3f2">invalid csrf token</div>
+		# <div type="error" class="	tiktok-1ucf5ae-DivDescription e18rms3f2">invalid csrf token</div>
 
 		# input("Hanging")
 		email = self.csvdata[0]
@@ -167,12 +170,17 @@ class My_Chrome():
 				if not e:		
 					print("inputting email")				
 					WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.NAME, "email")))
-					self.browser.find_element(By.NAME, "email").send_keys(email)
+					emailBox = self.browser.find_element(By.NAME, "email")
+					print("email box found")
+					emailBox.click()
+					self.send_keys_delay_random(emailBox, email)
 					e = True
 
 				if not p:
 					print("inputting password")				
-					self.browser.find_element(By.CSS_SELECTOR, "input[type = 'password']").send_keys(passw)
+					passwBox = self.browser.find_element(By.CSS_SELECTOR, "input[type = 'password']")
+					passwBox.click()
+					self.send_keys_delay_random(passwBox, passw)
 					p = True
 
 				if not m:
@@ -209,7 +217,6 @@ class My_Chrome():
 				print("error!")
 				self.browser.refresh()
 				time.sleep(1)
-				pass
 
 		self.browser.find_element(By.XPATH, '//button[text() = "Send code"]').click()
 
@@ -220,7 +227,8 @@ class My_Chrome():
 		#self.browser.close()
 		self.browser.switch_to.window(self.browser.window_handles[0])
 		time.sleep(5)
-		self.browser.find_element(By.XPATH, '//*[@placeholder = "Enter 6-digit code"]').send_keys(tikTokCode)
+		codeBox = self.browser.find_element(By.XPATH, '//*[@placeholder = "Enter 6-digit code"]')
+		self.send_keys_delay_random(codeBox, tikTokCode)
 		self.browser.find_element(By.CSS_SELECTOR, "button[type = 'submit']").click()
 
 		try:
@@ -241,7 +249,8 @@ class My_Chrome():
 					
 			self.browser.switch_to.window(self.browser.window_handles[1])
 
-			self.browser.find_element(By.NAME, 'OTP').send_keys(zohoOTPCode)
+			otpBox = self.browser.find_element(By.NAME, 'OTP')
+			self.send_keys_delay_random(otpBox, zohoOTPCode)
 			self.browser.find_element(By.ID, 'nextbtn').click()
 
 		# self.browser.execute_script("window.open('https://accounts.google.com/signin/v2/identifier?continue=https%3A%2F%2Fmail.google.com%2Fmail%2F&service=mail&sacu=1&rip=1&flowName=GlifWebSignIn&flowEntry=ServiceLogin');") 
@@ -255,12 +264,12 @@ class My_Chrome():
 
 		WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, '//input[@id="identifierId"]')))
 		gmailUserBox = self.browser.find_element(By.XPATH, '//input[@id="identifierId"]')
-		gmailUserBox.send_keys(self.email)
+		self.send_keys_delay_random(gmailUserBox, self.email)
 		gmailUserBox.send_keys(Keys.ENTER)
 
 		WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.ID, 'identifierId')))
 		gmailPasswBox = self.browser.find_element(By.NAME, 'password')
-		gmailPasswBox.send_keys(self.password)
+		self.send_keys_delay_random(gmailPasswBox, self.password)
 		time.sleep(1)
 		gmailPasswBox.send_keys(Keys.ENTER)
 		print("signed into google!")
@@ -286,12 +295,12 @@ class My_Chrome():
 
 		WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, '//input[@name="username"]')))
 		yahooUserBox = self.browser.find_element(By.XPATH, '//input[@name="username"]')
-		yahooUserBox.send_keys(self.email)
+		yahooUserBox.send_keys(self.send_keys_delay_random(self.email))
 		yahooUserBox.send_keys(Keys.ENTER)
 
 		WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.XPATH, '//input[@id = "login-passwd"]')))
 		yahooPasswBox = self.browser.find_element(By.XPATH, '//input[@id = "login-passwd"]')
-		yahooPasswBox.send_keys(self.password)
+		yahooPasswBox.send_keys(self.send_keys_delay_random(self.password))
 		time.sleep(1)
 		yahooPasswBox.send_keys(Keys.ENTER)
 
@@ -319,7 +328,7 @@ class My_Chrome():
 		self.browser.switch_to.window('zohoSignIN')
 
 		WebDriverWait(self.browser, 10).until(ec.visibility_of_element_located((By.NAME, 'LOGIN_ID')))
-		self.browser.find_element(By.NAME, 'LOGIN_ID').send_keys(email)
+		self.browser.find_element(By.NAME, 'LOGIN_ID').send_keys(self.send_keys_delay_random(email))
 		self.browser.find_element(By.ID, 'nextbtn').click()   
 
 	#Wait for Google Signin and grab code from email
